@@ -1,0 +1,28 @@
+{
+  "name": "denba-ar",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "check": "svelte-check --tsconfig ./tsconfig.app.json && tsc -p tsconfig.node.json"
+  },
+  "devDependencies": {
+    "@ar-js-org/ar.js-threejs": "^0.3.2",
+    "@sveltejs/vite-plugin-svelte": "^5.0.3",
+    "@tsconfig/svelte": "^5.0.4",
+    "@types/three": "^0.173.0",
+    "svelte": "^5.20.2",
+    "svelte-check": "^4.1.4",
+    "three": "^0.173.0",
+    "typescript": "~5.7.2",
+    "vite": "^6.2.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  }
+}
