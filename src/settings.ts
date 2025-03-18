@@ -33,6 +33,7 @@ export type PointData = {
     y: number;
     arrow?: THREE.Mesh;
 };
+export type VEArray = (VE & {x:number, y:number})[];
 
 export type MarkerInfo = Record<string, {
     root: THREE.Group<THREE.Object3DEventMap>,
@@ -79,3 +80,12 @@ export const CursorModes = [
     "電気力線", 
     "等電位線"
 ] as const;
+
+export function ij2idx(i:number, j:number){
+    return j * (DenbaSettings.N + 1) + i;
+}
+export function ij2xy(i:number, j:number){
+    const x = -DenbaSettings.L/2 + DenbaSettings.L * i / DenbaSettings.N;
+    const y = -DenbaSettings.L/2 + DenbaSettings.L * j / DenbaSettings.N;
+    return { x, y };
+}

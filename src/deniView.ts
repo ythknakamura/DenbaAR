@@ -1,0 +1,111 @@
+import * as THREE from 'three';
+import {Line2} from 'three/examples/jsm/lines/Line2.js';
+import {LineMaterial} from 'three/examples/jsm/lines/LineMaterial.js';
+import {LineGeometry} from 'three/examples/jsm/lines/LineGeometry.js';
+import { Colors, DenbaSettings, ij2idx, ij2xy , type VEArray,type MarkerInfo} from './settings';
+
+export class DeniView{
+    readonly object : THREE.Group = new THREE.Group();
+    private surfaceObject : THREE.Mesh;
+    private position : THREE.BufferAttribute | THREE.InterleavedBufferAttribute;
+    private color : THREE.BufferAttribute | THREE.InterleavedBufferAttribute;
+    private readonly poles :{[barcode:string]: Line2} = {};
+    poleInitialized: boolean = false;
+
+    constructor(){
+        const {N, L, VLimit} = DenbaSettings;
+        const positionBuffer: number[] = [];
+        const colorBuffer: number[] = [];
+        const face: number[] = [];
+        for (let i=0; i<=N; i++){
+            for(let j=0; j<=N; j++){
+                const idx = ij2idx(i, j);
+                const { x, y } = ij2xy(i, j);
+                positionBuffer.push(x, 0, y);
+                colorBuffer.push(0, 0, 0);
+                if(i < N && j < N){
+                    face.push(idx, idx+1, idx+N+2);
+                    face.push(idx, idx+N+2, idx+N+1);
+                }
+            }
+        }
+
+        const surfaceGeo = new THREE.BufferGeometry();
+        surfaceGeo.setAttribute('position', 
+            new THREE.Float32BufferAttribute(positionBuffer,3));
+        surfaceGeo.setAttribute('color', 
+            new THREE.Float32BufferAttribute(colorBuffer,3));
+        surfaceGeo.setIndex(face);
+
+        const surfaceMat = new THREE.MeshLambertMaterial({
+            vertexColors: true,
+            opacity: 0.5,
+            transparent: true,
+            side: THREE.DoubleSide,
+        });
+        this.surfaceObject = new THREE.Mesh(surfaceGeo, surfaceMat);
+        this.surfaceObject.position.setY(VLimit);
+        this.object.add(this.surfaceObject);
+
+        const surfaceArea = new THREE.LineSegments(
+            new THREE.EdgesGeometry(new THREE.BoxGeometry(L, VLimit, L)),
+            new THREE.LineBasicMaterial()
+        );
+        surfaceArea.position.setY(-VLimit/2);
+        this.object.add(surfaceArea);
+        this.position = surfaceGeo.attributes.position;
+        this.color = surfaceGeo.attributes.color;
+    }
+    
+    update(veArray:VEArray, makeThinIfSmall:boolean, makers:MarkerInfo){
+        if(!this.poleInitialized) this.initPole(makers);
+        for(const [barcode, {xy}] of Object.entries(makers)){
+            const pole = this.poles[barcode];
+            if(xy){
+                pole.position.set(xy!.x, 0, xy!.y);
+                pole.visible = true;
+            }
+            else{
+                pole.visible = false;
+            }
+        }
+        for(let idx=0; idx<veArray.length; idx++){
+            const { v } = veArray[idx];
+            const [r, g, b] = this.getVColor(v, makeThinIfSmall);
+            this.position.setY(idx, v);
+            this.color.setXYZ(idx, r, g, b);
+        }
+        this.position.needsUpdate = true;
+        this.color.needsUpdate = true;
+        this.surfaceObject.geometry.computeVertexNormals();
+    }
+
+    private getVColor(val: number, makeThinIfSmall:boolean): number[]{
+        const coo = makeThinIfSmall ? 25 : 5;
+        const vv = Math.tanh(val / DenbaSettings.VLimit * coo);
+        const r =  vv > 0 ?  vv: 0;
+        const b =  vv < 0 ? -vv: 0;
+        const g = 1 - r - b;
+        return [r+g, g, b+g];
+    }
+
+    private initPole(makers:MarkerInfo) {
+        for(const [barcode, {charge}] of Object.entries(makers)){
+            const pole = new Line2(
+                new LineGeometry(),
+                new LineMaterial({
+                    linewidth:3, 
+                    dashed:true,
+                    dashSize:0.2,
+                    gapSize:0.2,
+                    color: charge > 0 ? Colors.Positive : Colors.Negative})
+            );
+            pole.geometry.setPositions([0, -DenbaSettings.VLimit, 0, 0, DenbaSettings.VLimit, 0]);  
+            pole.position.setY(-DenbaSettings.VLimit);
+            pole.computeLineDistances();
+            this.object.add(pole);
+            this.poles[barcode] = pole;
+        }
+        this.poleInitialized = true;
+    }
+}

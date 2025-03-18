@@ -1,29 +1,24 @@
 import * as THREE from 'three';
 import {ArCtrl} from './arController';
+import { DenbaView } from './denbaView';
+import { DeniView } from './deniView';
 import { EArrow } from './eArrow';
 import {Contour, EFLine} from './trajectory';
-import { ChargePole } from './chargePole';
-import {DenbaSettings, ViewModes, Colors, Cards} from "./settings";
-import type {VE, PointData, MarkerInfo} from './settings';
+import {DenbaSettings, ViewModes, Colors, Cards, ij2xy} from "./settings";
+import type {VE, MarkerInfo, VEArray} from './settings';
 
 class FieldPlotClass{
-    private readonly pointData:PointData[] = [];
-    private readonly arrowObject: THREE.Group;
-    private readonly surfaceObject: THREE.Mesh;
+    private readonly veArray: VEArray;
+    private readonly arObject: THREE.Group;
+    private readonly denbaView: DenbaView;
+    private readonly deniView: DeniView;
     private readonly clippingPlanes: THREE.Plane[] = [];
     private readonly eArrow: EArrow;
     private readonly contour: Contour;
     private readonly efLine: EFLine;
-    private readonly chargePole: ChargePole;
     private makeThinIfSmall = false;
 
     constructor(){
-        const {L, N, VectorSkip, ArrowSize, VLimit} = DenbaSettings;
-        const arrowSize = L/N*VectorSkip/3*ArrowSize;
-        const positionBuffer: number[] = [];
-        const colorBuffer: number[] = [];
-        const face: number[] = [];
-
         // Markerの登録
         for(const [barcode, charge] of Object.entries(Cards)){
             const color  = charge > 0 ? Colors.Positive : Colors.Negative;
@@ -36,142 +31,87 @@ class FieldPlotClass{
             ArCtrl.addMarker(barcode, charge, object);
         }
         
-        // ArrowとPointDataの初期化
-        this.arrowObject = new THREE.Group();
-        for (let i=0; i<=N; i++){
-            for(let j=0; j<=N; j++){
-                let arrow;
-                const x = -L/2 + L*i/N;
-                const y = -L/2 + L*j/N;
-                const idx = i*(N+1) + j;
-                positionBuffer.push(x, 0, y);
-                colorBuffer.push(0, 0, 0);
-                if(i < N && j < N){
-                    face.push(idx, idx+1, idx+N+2);
-                    face.push(idx, idx+N+2, idx+N+1);
-                }
-                if(i%VectorSkip === 0 && j%VectorSkip === 0){
-                    const arrowGeo = new THREE.BufferGeometry().setFromPoints([
-                        new THREE.Vector3(-arrowSize, 0, arrowSize/2),
-                        new THREE.Vector3(2*arrowSize, 0, 0),
-                        new THREE.Vector3(-arrowSize, 0, -arrowSize/2)
-                    ]);
-                    const arrowMat = new THREE.MeshBasicMaterial({
-                        transparent: true,
-                        color: Colors.Denba,
-                    });
-                    arrow = new THREE.Mesh(arrowGeo, arrowMat);
-                    arrow.position.set(x, -0.01, y);
-                    this.arrowObject.add(arrow);
-                }
-                this.pointData.push({idx, x, y, arrow});
+        this.veArray = [];
+        for (let i=0; i<=DenbaSettings.N; i++){
+            for(let j=0; j<=DenbaSettings.N; j++){
+                const {x,y} = ij2xy(i, j);
+                this.veArray.push({v:0, e:0, ex:0, ey:0, x, y});
             }
         }
 
-        // Surfaceの初期化
-        const surfaceGeo = new THREE.BufferGeometry();
-        surfaceGeo.setAttribute('position', new THREE.Float32BufferAttribute(positionBuffer,3));
-        surfaceGeo.setAttribute('color', new THREE.Float32BufferAttribute(colorBuffer,3));
-        surfaceGeo.setIndex(face);
-        const surfaceMat = new THREE.MeshLambertMaterial({
-            vertexColors: true,
-            opacity: 0.5,
-            transparent: true,
-            clippingPlanes: this.clippingPlanes,
-            side: THREE.DoubleSide,
-        });
-        this.surfaceObject = new THREE.Mesh(surfaceGeo, surfaceMat);
-        this.surfaceObject.position.setY(VLimit);
-
-        //Surfaceの補助平面の追加
-        const surfaceArea = new THREE.LineSegments(
-            new THREE.EdgesGeometry(new THREE.BoxGeometry(L, VLimit, L)),
-            new THREE.LineBasicMaterial()
-        );
-        surfaceArea.position.setY(-VLimit/2);
-        this.surfaceObject.add(surfaceArea);
-
-        // ChargePoleの初期化
-        this.chargePole = new ChargePole();
-        this.surfaceObject.add(this.chargePole.object)
-
-        // Arrowの補助平面の追加
-        const arrowArea = new THREE.LineSegments(
-            new THREE.EdgesGeometry(new THREE.PlaneGeometry(L, L)),
-            new THREE.LineBasicMaterial()
-        );
-        arrowArea.rotateX(-Math.PI/2);
-        this.arrowObject.add(arrowArea);
-
-        // その他の初期化
+        this.denbaView = new DenbaView();
+        this.deniView = new DeniView();
         this.eArrow = new EArrow();
         this.contour = new Contour();
         this.efLine = new EFLine();
+        
+        this.arObject = new THREE.Group();
+        this.arObject.add(this.denbaView.object);
+        this.arObject.add(this.deniView.object);
+        this.arObject.add(this.eArrow.object);
+        this.arObject.add(this.contour.object);
+        this.arObject.add(this.efLine.object);
+        ArCtrl.addPlot(this.arObject);
 
+        /*
         ArCtrl.addPlot(
-            this.arrowObject, 
-            this.surfaceObject, 
+            this.denbaView.object,
+            this.deniView.object,
             this.eArrow.object,
             this.contour.object,
             this.efLine.object,
         );
+        */
     }
 
     calcValues(markers:MarkerInfo, cursor:THREE.Vector2){
-        const position = this.surfaceObject.geometry.attributes.position;
-        const color = this.surfaceObject.geometry.attributes.color;
-        for (const { idx, x, y, arrow } of this.pointData) {
-            const { v, e, ex, ey } = this.getVE(x, y, markers);
-            if (this.surfaceObject.visible) {
-                const [r, g, b] = this.getVColor(v);
-                position.setY(idx, v);
-                color.setXYZ(idx, r, g, b);
-                color.needsUpdate = true;
-                position.needsUpdate = true;
-            }
-            if (arrow && this.arrowObject.visible) {
-                arrow.rotation.y = -Math.atan2(ey, ex);
-                (arrow.material as THREE.Material).opacity = this.makeThinIfSmall ? 
-                    (e < 0.001 ? 0 : 0.9) : 
-                    Math.tanh(2 * e);
-            }
+        for(let idx=0; idx<this.veArray.length; idx++){
+            const vea = this.veArray[idx];
+            const {x,y} = vea;
+            const { v, e, ex, ey} = this.calcVE(x, y, markers);
+            vea.v = v;
+            vea.e = e;
+            vea.ex = ex;
+            vea.ey = ey;
         }
-        this.surfaceObject.geometry.computeVertexNormals();
 
+        /*
         const iyc = [[0, -1, DenbaSettings.VLimit], [1, 1, DenbaSettings.VLimit]];
         for(const [i,y,c] of iyc){
             const plane = new THREE.Plane(new THREE.Vector3(0, y, 0), c);
-            plane.applyMatrix4(this.surfaceObject.matrixWorld);
-            this.clippingPlanes[i] = plane;
+           // plane.applyMatrix4(this.surfaceObject.matrixWorld);
+            //this.clippingPlanes[i] = plane;
         }
+        */
 
-        const { e, ex, ey } = this.getVE(cursor.x, cursor.y, markers);
-        this.eArrow.update(cursor.x, cursor.y, THREE.MathUtils.clamp(e, 0.1, 4), Math.atan2(ey, ex));
-        this.contour.update(cursor.x, cursor.y, (x: number, y: number) => this.getVE(x, y, markers));
-        this.efLine.update(cursor.x, cursor.y, (x: number, y: number) => this.getVE(x, y, markers));
-        this.chargePole.update(markers);
+        const { e: ce, ex: cex, ey: cey } = this.calcVE(cursor.x, cursor.y, markers);
+        this.denbaView.update(this.veArray, this.makeThinIfSmall);
+        this.deniView.update(this.veArray, this.makeThinIfSmall, markers);
+        this.eArrow.update(cursor.x, cursor.y, THREE.MathUtils.clamp(ce, 0.1, 4), Math.atan2(cey, cex));
+        this.contour.update(cursor.x, cursor.y, (x: number, y: number) => this.calcVE(x, y, markers));
+        this.efLine.update(cursor.x, cursor.y, (x: number, y: number) => this.calcVE(x, y, markers));
     }
 
     setViewMode(mode: typeof ViewModes[number]) {
         switch(mode){
             case  "電場を描画（向きと大きさ）":
-                this.arrowObject.visible = true;
-                this.surfaceObject.visible = false;
+                this.denbaView.object.visible = true;
+                this.deniView.object.visible = false;
                 this.makeThinIfSmall = false;
                 break;
             case "電場を描画（向きのみ）":
-                this.arrowObject.visible = true;
-                this.surfaceObject.visible = false;
+                this.denbaView.object.visible = true;
+                this.deniView.object.visible = false;
                 this.makeThinIfSmall = true;
                 break;
             case "電位を描画（通常）":
-                this.arrowObject.visible = false;
-                this.surfaceObject.visible = true;
+                this.denbaView.object.visible = false;
+                this.deniView.object.visible = true;
                 this.makeThinIfSmall = false;
                 break;
             case "電位を描画（正負を強調）":
-                this.arrowObject.visible = false;
-                this.surfaceObject.visible = true;
+                this.denbaView.object.visible = false;
+                this.deniView.object.visible = true;
                 this.makeThinIfSmall = true;
                 break;
         }
@@ -182,7 +122,7 @@ class FieldPlotClass{
         this.contour.object.visible = showContour;
     } 
 
-    private getVE(x:number, y:number, markers:MarkerInfo):VE{
+    private calcVE(x:number, y:number, markers:MarkerInfo):VE{
         let [v, ex, ey] = [0, 0, 0];
         for(const marker of Object.values(markers)){
             if(marker.xy){
@@ -198,15 +138,6 @@ class FieldPlotClass{
         const e = Math.sqrt(ex ** 2 + ey ** 2);
         v = THREE.MathUtils.clamp(v, -DenbaSettings.VLimit*1.5, DenbaSettings.VLimit*1.5);
         return { v, e, ex, ey };
-    }
-
-    private getVColor(val: number) {
-        const coo = this.makeThinIfSmall ? 25 : 5;
-        const vv = Math.tanh(val / DenbaSettings.VLimit* coo);
-        const r =  vv > 0 ?  vv: 0;
-        const b =  vv < 0 ? -vv: 0;
-        const g = 1 - r - b;
-        return [r+g, g, b+g];
     }
 }
 
