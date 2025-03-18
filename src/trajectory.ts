@@ -88,7 +88,7 @@ export class Contour {
     }
     update(sx:number, sy:number, f:updateFunc){
         const gamma = 9;
-        const num = 1012;
+        const num = 1024;
         const epsilon = 0.01;
         const arrayR = [];
         let [xr,yr] = [sx, sy];

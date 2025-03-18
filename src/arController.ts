@@ -17,6 +17,7 @@ class ArController{
     readonly renderer = new THREE.WebGLRenderer({
         antialias: true, alpha: true,
     });
+    readonly clock: THREE.Clock = new THREE.Clock();
     readonly scene = new THREE.Scene();
     readonly markers : MarkerInfo = {};
     readonly baseMarkerRoot: THREE.Group = new THREE.Group();
@@ -29,11 +30,11 @@ class ArController{
         cameraParametersUrl: cameraPara,
         detectionMode:'mono_and_matrix',
         matrixCodeType:'3x3_PARITY65',
-        //matrixCodeType:'3x3_HAMMING63',
         debug: false,
     });
     tickFunc?: (markers:MarkerInfo, cursor:THREE.Vector2 ) => void;
-    
+    lastUpdate : number = 100000;
+
     constructor(){
         const renderer = this.renderer;
         const canvas = renderer.domElement;
@@ -85,12 +86,14 @@ class ArController{
             changeMatrixMode: 'modelViewMatrix',
         });
 
+        let frame = 0;
         renderer.setAnimationLoop((() =>{
             renderer.render(scene, camera); 
             if (arToolkitSource.ready) {
-                arToolkitContext.update(arToolkitSource.domElement);
+                if(frame % 10 === 0) arToolkitContext.update(arToolkitSource.domElement);
                 scene.visible = camera.visible;
                 this.tick();
+                frame++;
             }
         }));
 
@@ -137,13 +140,17 @@ class ArController{
 
     private tick(){
         stats?.begin();
-        for(const marker of Object.values(this.markers)){
-            marker.xy = undefined;
-            if(marker.root.visible){
-                const posWorld = marker.object.getWorldPosition(new THREE.Vector3());
-                const posBase  = this.baseMarkerRoot.worldToLocal(posWorld);
-                if(Math.abs(posBase.y)< 5){
-                    marker.xy = new THREE.Vector2(posBase.x, posBase.z);
+        this.lastUpdate += this.clock.getDelta();
+        if(this.lastUpdate > 0.5){
+            for(const marker of Object.values(this.markers)){
+                marker.xy = undefined;
+                if(marker.root.visible){
+                    const posWorld = marker.object.getWorldPosition(new THREE.Vector3());
+                    const posBase  = this.baseMarkerRoot.worldToLocal(posWorld);
+                    if(Math.abs(posBase.y)> 0){
+                        marker.xy = new THREE.Vector2(posBase.x, posBase.z);
+                        this.lastUpdate = 0;
+                    }
                 }
             }
         }

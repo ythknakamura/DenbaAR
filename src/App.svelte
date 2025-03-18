@@ -6,7 +6,7 @@
   import {type MarkerInfo, ViewModes, CursorModes, DebugMode, Colors} from './settings';
 
   let dbgMsg = $state('');
-  let selectedViewMode = $state(ViewModes[0]);
+  let selectedViewMode = $state(ViewModes[2]);
   let showEArrow = $state(true);
   let showEFLine = $state(true);
   let showContour = $state(true);

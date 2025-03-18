@@ -76,7 +76,6 @@ class FieldPlotClass{
         const surfaceMat = new THREE.MeshLambertMaterial({
             vertexColors: true,
             opacity: 0.5,
-            wireframe: DenbaSettings.WireFrame,
             transparent: true,
             clippingPlanes: this.clippingPlanes,
             side: THREE.DoubleSide,

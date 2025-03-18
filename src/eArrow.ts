@@ -7,6 +7,7 @@ export class EArrow{
     private readonly body: THREE.Mesh;
     readonly object: THREE.Group = new THREE.Group();
     constructor(){
+        this.object.position.set(0, 0.05, 0);
         const color = Colors.EArrow;
         const tailGeometry = new THREE.PlaneGeometry(0.2,0.2);
         tailGeometry.rotateX(-Math.PI/2);
@@ -24,7 +25,6 @@ export class EArrow{
         this.object.add(this.tail);
         this.object.add(this.head);
         this.object.add(this.body);
-        this.object.position.set(0, 0.05, 0);
     }
 
     update(x:number, y:number, length:number, angle:number){

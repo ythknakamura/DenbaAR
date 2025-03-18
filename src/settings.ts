@@ -9,7 +9,6 @@ export const DenbaSettings = {
     N: 48,
     VectorSkip: 2,
     ArrowSize:0.75,
-    WireFrame: false,
 } as const;
 
 export const Colors = {
