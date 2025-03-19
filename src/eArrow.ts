@@ -34,4 +34,10 @@ export class EArrow{
         this.object.position.set(x, 0.1, y);
         this.object.rotation.y = -angle;
     }
+
+    public show(tail:boolean, arrow:boolean){
+        this.tail.visible = tail || arrow;
+        this.head.visible = arrow;
+        this.body.visible = arrow;
+    }
 }

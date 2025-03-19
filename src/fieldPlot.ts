@@ -95,7 +95,7 @@ class FieldPlotClass{
         }
         this.eArrow.update(cursor.x, cursor.y, THREE.MathUtils.clamp(ce, 0.1, 4), Math.atan2(cey, cex));
         this.contour.update(cursor.x, cursor.y, updateFunc, showDeni, this.clippingPlanes);
-        this.efLine.update( cursor.x, cursor.y, updateFunc, showDeni, this.clippingPlanes);
+        this.efLine.update(cursor.x, cursor.y, updateFunc, showDeni, this.clippingPlanes);
     }
 
     setViewMode(mode: typeof ViewModes[number]) {
@@ -122,8 +122,10 @@ class FieldPlotClass{
                 break;
         }
     }
+
     setCursorMode(showEArrow: boolean, showEFLine: boolean, showContour: boolean){
-        this.eArrow.object.visible = showEArrow;
+        this.eArrow.show(showEFLine || showContour, showEArrow);
+        //this.eArrow.object.visible = showEArrow;
         this.efLine.object.visible = showEFLine;
         this.contour.object.visible = showContour;
     } 
