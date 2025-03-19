@@ -69,8 +69,8 @@ export class EFLine{
         );
         this.object.add(this.LineF);
         this.object.add(this.LineB);
-        this.object.add(this.LineFd);
-        this.object.add(this.LineBd);
+        //this.object.add(this.LineFd);
+        //this.object.add(this.LineBd);
     }
     update(sx:number, sy:number, f:updateFunc, showDeni:boolean, cp:THREE.Plane[]){
         const VLimit =  DenbaSettings.VLimit
@@ -111,7 +111,7 @@ export class EFLine{
         }
         this.LineF.geometry.setPositions(arrayF);
         this.LineB.geometry.setPositions(arrayB);
-        if(showDeni){
+        if(showDeni || true){
             this.LineFd.geometry.setPositions(arrayFd);
             this.LineBd.geometry.setPositions(arrayBd);
             this.LineFd.computeLineDistances();
@@ -173,8 +173,8 @@ export class Contour {
         );
         this.object.add(this.LineR);
         this.object.add(this.LineL);
-        this.object.add(this.LineRd);
-        this.object.add(this.LineLd);
+        //this.object.add(this.LineRd);
+        //this.object.add(this.LineLd);
     }
     update(sx:number, sy:number, f:updateFunc, showDeni:boolean, cp:THREE.Plane[]){
         const gamma = 9;
@@ -218,7 +218,7 @@ export class Contour {
         }
         this.LineR.geometry.setPositions(arrayR);
         this.LineL.geometry.setPositions(arrayL);
-        if(showDeni){
+        if(showDeni || true){
             this.LineRd.geometry.setPositions(arrayRd);
             this.LineLd.geometry.setPositions(arrayLd);
             this.LineRd.computeLineDistances();
