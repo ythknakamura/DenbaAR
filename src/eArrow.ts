@@ -7,14 +7,14 @@ export class EArrow{
     private readonly body: THREE.Mesh;
     readonly object: THREE.Group = new THREE.Group();
     constructor(){
-        this.object.position.set(0, 0.05, 0);
+        this.object.position.set(0, 0, 0);
         const color = Colors.EArrow;
         const tailGeometry = new THREE.PlaneGeometry(0.2,0.2);
         tailGeometry.rotateX(-Math.PI/2);
         const headGeometry = new THREE.BufferGeometry().setFromPoints([
-            new THREE.Vector3(0.3, 0.05, 0),
-            new THREE.Vector3(0, 0.05, -0.2),
-            new THREE.Vector3(0, 0.05, 0.2),
+            new THREE.Vector3(0.3, 0, 0),
+            new THREE.Vector3(0, 0, -0.2),
+            new THREE.Vector3(0, 0, 0.2),
         ]);
         const bodyGeometry = new THREE.PlaneGeometry(1,0.1);
         bodyGeometry.rotateX(-Math.PI/2);
@@ -31,7 +31,7 @@ export class EArrow{
         this.head.position.setX(length);
         this.body.scale.setX(length);
         this.body.position.setX(length/2);
-        this.object.position.set(x, 0.1, y);
+        this.object.position.set(x, 0, y);
         this.object.rotation.y = -angle;
     }
 

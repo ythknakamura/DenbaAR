@@ -27,7 +27,7 @@ class FieldPlotClass{
                 new THREE.SphereGeometry(size),
                 new THREE.MeshLambertMaterial({color})
             );
-            object.position.set(0, 0, -1);
+            object.position.set(0, 0, -1.25);
             ArCtrl.addMarker(barcode, charge, object);
         }
         
@@ -98,7 +98,7 @@ class FieldPlotClass{
         this.efLine.update(cursor.x, cursor.y, updateFunc, showDeni, this.clippingPlanes);
     }
 
-    setViewMode(mode: typeof ViewModes[number]) {
+    setViewMode(mode: typeof ViewModes[number], baseMarkerSurvived: boolean){
         switch(mode){
             case  "電場を描画（向きと大きさ）":
                 this.denbaView.object.visible = true;
@@ -121,11 +121,11 @@ class FieldPlotClass{
                 this.makeThinIfSmall = true;
                 break;
         }
+        this.arObject.visible = baseMarkerSurvived;
     }
 
     setCursorMode(showEArrow: boolean, showEFLine: boolean, showContour: boolean){
         this.eArrow.show(showEFLine || showContour, showEArrow);
-        //this.eArrow.object.visible = showEArrow;
         this.efLine.object.visible = showEFLine;
         this.contour.object.visible = showContour;
     } 

@@ -12,7 +12,7 @@ export const DenbaSettings = {
 } as const;
 
 export const ARSettings={
-    MarkerLife:2,
+    MarkerLife:3,
     FrameSkip:3,
     MarkerUpdateInterval:0.1
 } as const;

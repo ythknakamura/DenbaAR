@@ -32,8 +32,9 @@ class ArController{
         matrixCodeType:'3x3_PARITY65',
         debug: false,
     });
-    tickFunc?: (markers:MarkerInfo, cursor:THREE.Vector2 ) => void;
+    tickFunc?: (markers:MarkerInfo, cursor:THREE.Vector2, baseMakerSurvived: boolean) => void;
     private lastUpdate : number = 100000;
+    private baseMarkerLife : number = ARSettings.MarkerLife;
 
     constructor(){
         const renderer = this.renderer;
@@ -146,28 +147,38 @@ class ArController{
 
     private tick(){
         stats?.begin();
+        let baseMakerSurvived =  true;
         this.lastUpdate += this.clock.getDelta();
         if(this.lastUpdate > ARSettings.MarkerUpdateInterval){
-            for(const marker of Object.values(this.markers)){
-                if(marker.root.visible){
-                    const posWorld = marker.object.getWorldPosition(new THREE.Vector3());
-                    const posBase  = this.baseMarkerRoot.worldToLocal(posWorld);
-                    if(Math.abs(posBase.y)> 0){
+            if(this.baseMarkerRoot.visible){
+                this.baseMarkerLife = ARSettings.MarkerLife;
+            }
+            else{
+                this.baseMarkerLife--;
+                if (this.baseMarkerLife < 0){
+                    baseMakerSurvived = false;
+                }
+            }
+            if(baseMakerSurvived){
+                for(const marker of Object.values(this.markers)){
+                    if(marker.root.visible){
+                        const posWorld = marker.object.getWorldPosition(new THREE.Vector3());
+                        const posBase  = this.baseMarkerRoot.worldToLocal(posWorld);
                         marker.xy = new THREE.Vector2(posBase.x, posBase.z);
                         marker.life = ARSettings.MarkerLife;
                         this.lastUpdate = 0;
                     }
-                }
-                else if(marker.life < 0){
-                    marker.xy = undefined;
-                }
-                else{
-                    marker.life--;
+                    else{
+                        marker.life--;
+                        if(marker.life < 0){
+                            marker.xy = undefined;
+                        }
+                    }
                 }
             }
         }
         const cursorPos = new THREE.Vector2(this.cursor.position.x, this.cursor.position.z);
-        this.tickFunc?.(this.markers, cursorPos);
+        this.tickFunc?.(this.markers, cursorPos, baseMakerSurvived);
         stats?.end();
     }
 

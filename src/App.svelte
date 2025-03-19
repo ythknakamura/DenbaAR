@@ -11,7 +11,7 @@
   let showEFLine = $state(false);
   let showContour = $state(false);
 
-  ArCtrl.tickFunc = function(markers: MarkerInfo, cursor:THREE.Vector2){
+  ArCtrl.tickFunc = function(markers: MarkerInfo, cursor:THREE.Vector2, baseMarkerSurvived: boolean){
     if(DebugMode){
       dbgMsg = `c(${cursor.x.toFixed(2)}, ${cursor.y.toFixed(2)}), `;
       for (const marker of Object.values(markers)) {
@@ -20,7 +20,7 @@
         }
       }
     }
-    FieldPlot.setViewMode(selectedViewMode);
+    FieldPlot.setViewMode(selectedViewMode, baseMarkerSurvived);
     FieldPlot.setCursorMode(showEArrow, showEFLine, showContour);
     FieldPlot.calcValues(markers, cursor);
   }
