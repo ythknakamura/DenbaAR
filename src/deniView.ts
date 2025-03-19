@@ -68,7 +68,7 @@ export class DeniView{
     }
     
     update(veArray:VEArray, makeThinIfSmall:boolean, makers:MarkerInfo, cp:THREE.Plane[]){
-        const {N, VLimit} =  DenbaSettings;
+        const {N} =  DenbaSettings;
         if(!this.poleInitialized) this.initPole(makers);
         for(const [barcode, {xy}] of Object.entries(makers)){
             const pole = this.poles[barcode];

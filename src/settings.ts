@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 
-export const DebugMode = !false;
+export const DebugMode = false;
 
 export const DenbaSettings = {
     K: 1,
