@@ -10,9 +10,9 @@ import type {VE, MarkerInfo, VEArray} from './settings';
 class FieldPlotClass{
     private readonly veArray: VEArray;
     private readonly arObject: THREE.Group;
+    private readonly clippingPlanes: THREE.Plane[];
     private readonly denbaView: DenbaView;
     private readonly deniView: DeniView;
-    private readonly clippingPlanes: THREE.Plane[] = [];
     private readonly eArrow: EArrow;
     private readonly contour: Contour;
     private readonly efLine: EFLine;
@@ -27,7 +27,7 @@ class FieldPlotClass{
                 new THREE.SphereGeometry(size),
                 new THREE.MeshLambertMaterial({color})
             );
-            object.position.set(0, 0.5, -1);
+            object.position.set(0, 0, -1);
             ArCtrl.addMarker(barcode, charge, object);
         }
         
@@ -38,6 +38,8 @@ class FieldPlotClass{
                 this.veArray.push({v:0, e:0, ex:0, ey:0, x, y});
             }
         }
+
+        this.clippingPlanes = new Array(6);
 
         this.denbaView = new DenbaView();
         this.deniView = new DeniView();
@@ -52,16 +54,6 @@ class FieldPlotClass{
         this.arObject.add(this.contour.object);
         this.arObject.add(this.efLine.object);
         ArCtrl.addPlot(this.arObject);
-
-        /*
-        ArCtrl.addPlot(
-            this.denbaView.object,
-            this.deniView.object,
-            this.eArrow.object,
-            this.contour.object,
-            this.efLine.object,
-        );
-        */
     }
 
     calcValues(markers:MarkerInfo, cursor:THREE.Vector2){
@@ -75,21 +67,27 @@ class FieldPlotClass{
             vea.ey = ey;
         }
 
-        /*
-        const iyc = [[0, -1, DenbaSettings.VLimit], [1, 1, DenbaSettings.VLimit]];
-        for(const [i,y,c] of iyc){
-            const plane = new THREE.Plane(new THREE.Vector3(0, y, 0), c);
-           // plane.applyMatrix4(this.surfaceObject.matrixWorld);
-            //this.clippingPlanes[i] = plane;
+        const {VLimit, L} = DenbaSettings;
+        const xyzc = [[0,-1,0,VLimit],[0,1,0,VLimit],[1,0,0,L/2],[-1,0,0,L/2],[0,0,1,L/2],[0,0,-1,L/2]];
+        for(let i=0; i<xyzc.length; i++){
+            const [x, y, z, c] = xyzc[i];
+            const plane = new THREE.Plane(new THREE.Vector3(x, y, z), c);
+            plane.applyMatrix4(this.arObject.matrixWorld);
+            this.clippingPlanes[i] = plane;
         }
-        */
 
         const { e: ce, ex: cex, ey: cey } = this.calcVE(cursor.x, cursor.y, markers);
-        this.denbaView.update(this.veArray, this.makeThinIfSmall);
-        this.deniView.update(this.veArray, this.makeThinIfSmall, markers);
+        const showDeni = this.deniView.object.visible;
+        const updateFunc = (x: number, y: number) => this.calcVE(x, y, markers);
+        if(showDeni){
+            this.deniView.update(this.veArray, this.makeThinIfSmall, markers, this.clippingPlanes);
+        }
+        else{
+            this.denbaView.update(this.veArray, this.makeThinIfSmall);
+        }
         this.eArrow.update(cursor.x, cursor.y, THREE.MathUtils.clamp(ce, 0.1, 4), Math.atan2(cey, cex));
-        this.contour.update(cursor.x, cursor.y, (x: number, y: number) => this.calcVE(x, y, markers));
-        this.efLine.update(cursor.x, cursor.y, (x: number, y: number) => this.calcVE(x, y, markers));
+        this.contour.update(cursor.x, cursor.y, updateFunc, showDeni, this.clippingPlanes);
+        this.efLine.update( cursor.x, cursor.y, updateFunc, showDeni, this.clippingPlanes);
     }
 
     setViewMode(mode: typeof ViewModes[number]) {

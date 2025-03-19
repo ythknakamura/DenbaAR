@@ -1,8 +1,10 @@
 import * as THREE from 'three';
+//import *  as SceneUtils from 'three/examples/jsm/utils/SceneUtils.js';
 import {Line2} from 'three/examples/jsm/lines/Line2.js';
 import {LineMaterial} from 'three/examples/jsm/lines/LineMaterial.js';
 import {LineGeometry} from 'three/examples/jsm/lines/LineGeometry.js';
-import { Colors, DenbaSettings, ij2idx, ij2xy , type VEArray,type MarkerInfo} from './settings';
+import { Colors, DenbaSettings, ij2idx, ij2xy} from './settings';
+import type {VEArray, MarkerInfo} from './settings';
 
 export class DeniView{
     readonly object : THREE.Group = new THREE.Group();
@@ -10,13 +12,15 @@ export class DeniView{
     private position : THREE.BufferAttribute | THREE.InterleavedBufferAttribute;
     private color : THREE.BufferAttribute | THREE.InterleavedBufferAttribute;
     private readonly poles :{[barcode:string]: Line2} = {};
+    private readonly clippingPlanes: THREE.Plane[] = new Array(2);
     poleInitialized: boolean = false;
 
     constructor(){
-        const {N, L, VLimit} = DenbaSettings;
+        const {N} = DenbaSettings;
         const positionBuffer: number[] = [];
         const colorBuffer: number[] = [];
         const face: number[] = [];
+
         for (let i=0; i<=N; i++){
             for(let j=0; j<=N; j++){
                 const idx = ij2idx(i, j);
@@ -42,39 +46,52 @@ export class DeniView{
             opacity: 0.5,
             transparent: true,
             side: THREE.DoubleSide,
+            clippingPlanes: this.clippingPlanes,
+            clipShadows: true,
         });
         this.surfaceObject = new THREE.Mesh(surfaceGeo, surfaceMat);
-        this.surfaceObject.position.setY(VLimit);
         this.object.add(this.surfaceObject);
 
-        const surfaceArea = new THREE.LineSegments(
-            new THREE.EdgesGeometry(new THREE.BoxGeometry(L, VLimit, L)),
-            new THREE.LineBasicMaterial()
+        const wireframe = new THREE.Mesh(
+            surfaceGeo, 
+            new THREE.MeshBasicMaterial({
+                wireframe:true,
+                transparent:true,
+                opacity:0.1,
+                clippingPlanes: this.clippingPlanes,
+            })
         );
-        surfaceArea.position.setY(-VLimit/2);
-        this.object.add(surfaceArea);
+        this.object.add(wireframe);
+
         this.position = surfaceGeo.attributes.position;
         this.color = surfaceGeo.attributes.color;
     }
     
-    update(veArray:VEArray, makeThinIfSmall:boolean, makers:MarkerInfo){
+    update(veArray:VEArray, makeThinIfSmall:boolean, makers:MarkerInfo, cp:THREE.Plane[]){
+        const {N, VLimit} =  DenbaSettings;
         if(!this.poleInitialized) this.initPole(makers);
         for(const [barcode, {xy}] of Object.entries(makers)){
             const pole = this.poles[barcode];
             if(xy){
-                pole.position.set(xy!.x, 0, xy!.y);
+                pole.position.setX(xy.x);
+                pole.position.setZ(xy.y);
                 pole.visible = true;
             }
             else{
                 pole.visible = false;
             }
         }
-        for(let idx=0; idx<veArray.length; idx++){
-            const { v } = veArray[idx];
-            const [r, g, b] = this.getVColor(v, makeThinIfSmall);
-            this.position.setY(idx, v);
-            this.color.setXYZ(idx, r, g, b);
+        for(let i=0; i<=N; i++){
+            for(let j=0; j<=N; j++){
+                const idx = ij2idx(i, j);
+                const { v } = veArray[idx];
+                const [r, g, b] = this.getVColor(v, makeThinIfSmall);
+                this.position.setY(idx, v);
+                this.color.setXYZ(idx, r, g, b);
+            }
         }
+        this.clippingPlanes[0] = cp[0];
+        this.clippingPlanes[1] = cp[1];
         this.position.needsUpdate = true;
         this.color.needsUpdate = true;
         this.surfaceObject.geometry.computeVertexNormals();
@@ -100,8 +117,9 @@ export class DeniView{
                     gapSize:0.2,
                     color: charge > 0 ? Colors.Positive : Colors.Negative})
             );
-            pole.geometry.setPositions([0, -DenbaSettings.VLimit, 0, 0, DenbaSettings.VLimit, 0]);  
-            pole.position.setY(-DenbaSettings.VLimit);
+            pole.geometry.setPositions([
+                0, 0, 0, 
+                0, charge > 0 ? DenbaSettings.VLimit:-DenbaSettings.VLimit, 0]);  
             pole.computeLineDistances();
             this.object.add(pole);
             this.poles[barcode] = pole;

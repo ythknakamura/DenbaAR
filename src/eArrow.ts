@@ -31,7 +31,7 @@ export class EArrow{
         this.head.position.setX(length);
         this.body.scale.setX(length);
         this.body.position.setX(length/2);
-        this.object.position.set(x, 0.05, y);
+        this.object.position.set(x, 0.1, y);
         this.object.rotation.y = -angle;
     }
 }

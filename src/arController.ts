@@ -41,6 +41,7 @@ class ArController{
         renderer.localClippingEnabled = true;
         renderer.setClearColor(new THREE.Color(), 0);
         renderer.setSize(width, height);
+        renderer.setPixelRatio(window.devicePixelRatio);
         document.body.appendChild(canvas);
 
         const scene = this.scene;

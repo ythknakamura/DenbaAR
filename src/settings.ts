@@ -8,7 +8,7 @@ export const DenbaSettings = {
     VLimit: 4,
     N: 48,
     VectorSkip: 2,
-    ArrowSize:0.75,
+    ArrowSize: 0.75,
 } as const;
 
 export const Colors = {
@@ -17,7 +17,7 @@ export const Colors = {
     Denba: "#00BF62",
     Deni: "#ee7800",
     EFLine: "#800080",
-    EArrow: "#ffff00",
+    EArrow: "#ddff00",
 } as const;
 
 export type VE = {
