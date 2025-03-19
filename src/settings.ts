@@ -11,6 +11,12 @@ export const DenbaSettings = {
     ArrowSize: 0.75,
 } as const;
 
+export const ARSettings={
+    MarkerLife:2,
+    FrameSkip:3,
+    MarkerUpdateInterval:0.1
+} as const;
+
 export const Colors = {
     Positive: "#E11345",
     Negative: "#3232ff",
@@ -40,6 +46,7 @@ export type MarkerInfo = Record<string, {
     object: THREE.Object3D,
     xy?: THREE.Vector2,
     charge: number,
+    life:number,
 }>;
 
 /*

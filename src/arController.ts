@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { THREEx } from '@ar-js-org/ar.js-threejs';
 import Stats from 'three/examples/jsm/libs/stats.module.js';
 import cameraPara from "./assets/camera_para.dat?url";
-import {type MarkerInfo, DebugMode, DenbaSettings} from './settings';
+import {type MarkerInfo, DebugMode, DenbaSettings, ARSettings} from './settings';
 const width = 640*2;
 const height = 480*2;
 const baseMarkerBarcodeValue = 0;
@@ -14,15 +14,15 @@ if(stats){
 }
 
 class ArController{
-    readonly renderer = new THREE.WebGLRenderer({
+    private readonly renderer = new THREE.WebGLRenderer({
         antialias: true, alpha: true,
     });
-    readonly clock: THREE.Clock = new THREE.Clock();
-    readonly scene = new THREE.Scene();
-    readonly markers : MarkerInfo = {};
-    readonly baseMarkerRoot: THREE.Group = new THREE.Group();
-    readonly raycaster = new THREE.Raycaster();
-    readonly cursor = new THREE.Mesh(
+    private readonly scene = new THREE.Scene();
+    private readonly baseMarkerRoot: THREE.Group = new THREE.Group();
+    private readonly clock: THREE.Clock = new THREE.Clock();
+    private readonly markers : MarkerInfo = {};
+    private readonly raycaster = new THREE.Raycaster();
+    private readonly cursor = new THREE.Mesh(
         new THREE.BoxGeometry(0.1, 0.1, 0.1),
         new THREE.MeshBasicMaterial({colorWrite: false, depthWrite: false})
     );
@@ -33,7 +33,7 @@ class ArController{
         debug: false,
     });
     tickFunc?: (markers:MarkerInfo, cursor:THREE.Vector2 ) => void;
-    lastUpdate : number = 100000;
+    private lastUpdate : number = 100000;
 
     constructor(){
         const renderer = this.renderer;
@@ -91,7 +91,7 @@ class ArController{
         renderer.setAnimationLoop((() =>{
             renderer.render(scene, camera); 
             if (arToolkitSource.ready) {
-                if(frame % 10 === 0) arToolkitContext.update(arToolkitSource.domElement);
+                if(frame % ARSettings.FrameSkip === 0) arToolkitContext.update(arToolkitSource.domElement);
                 scene.visible = camera.visible;
                 this.tick();
                 frame++;
@@ -130,28 +130,39 @@ class ArController{
         });
         root.add(object);
         this.scene.add(root);
-        this.markers[barcodeStr] = {root, charge, object};
+        this.markers[barcodeStr] = {root, charge, object, life: ARSettings.MarkerLife};
     }
 
-    addPlot(...objects:THREE.Object3D[]){
-        for(const object of objects){
-            this.baseMarkerRoot.add(object);
-        }
+    addToScene(object:THREE.Object3D){
+        this.scene.add(object);
+    }
+    getWorldPosAndQuat():{p:THREE.Vector3, q:THREE.Quaternion}{
+        const p = new THREE.Vector3();
+        const q = new THREE.Quaternion();
+        this.baseMarkerRoot.getWorldPosition(p);
+        this.baseMarkerRoot.getWorldQuaternion(q);
+        return { p, q };
     }
 
     private tick(){
         stats?.begin();
         this.lastUpdate += this.clock.getDelta();
-        if(this.lastUpdate > 0.5){
+        if(this.lastUpdate > ARSettings.MarkerUpdateInterval){
             for(const marker of Object.values(this.markers)){
-                marker.xy = undefined;
                 if(marker.root.visible){
                     const posWorld = marker.object.getWorldPosition(new THREE.Vector3());
                     const posBase  = this.baseMarkerRoot.worldToLocal(posWorld);
                     if(Math.abs(posBase.y)> 0){
                         marker.xy = new THREE.Vector2(posBase.x, posBase.z);
+                        marker.life = ARSettings.MarkerLife;
                         this.lastUpdate = 0;
                     }
+                }
+                else if(marker.life < 0){
+                    marker.xy = undefined;
+                }
+                else{
+                    marker.life--;
                 }
             }
         }

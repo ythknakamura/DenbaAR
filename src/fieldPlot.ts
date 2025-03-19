@@ -53,10 +53,18 @@ class FieldPlotClass{
         this.arObject.add(this.eArrow.object);
         this.arObject.add(this.contour.object);
         this.arObject.add(this.efLine.object);
-        ArCtrl.addPlot(this.arObject);
+        ArCtrl.addToScene(this.arObject);
     }
 
     calcValues(markers:MarkerInfo, cursor:THREE.Vector2){
+        const {p,q} = ArCtrl.getWorldPosAndQuat();
+        const pos = this.arObject.position;
+        const quat = this.arObject.quaternion;
+        const s =1.0/8;
+        const r = 1-s;
+        pos.set(pos.x*r + p.x*s, pos.y*r + p.y*s, pos.z*r + p.z*s);
+        quat.set(quat.x*r + q.x*s, quat.y*r + q.y*s, quat.z*r + q.z*s, quat.w*r + q.w*s);
+
         for(let idx=0; idx<this.veArray.length; idx++){
             const vea = this.veArray[idx];
             const {x,y} = vea;
