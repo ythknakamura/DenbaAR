@@ -4,6 +4,7 @@ import {LineMaterial} from 'three/examples/jsm/lines/LineMaterial.js';
 import {LineGeometry} from 'three/examples/jsm/lines/LineGeometry.js';
 import { Colors, DenbaSettings, ij2idx, ij2xy} from './settings';
 import type {VEArray, MarkerInfo} from './settings';
+import { MarkerCradle } from './markerCradle';
 
 export class DeniView{
     readonly object : THREE.Group = new THREE.Group();
@@ -66,13 +67,13 @@ export class DeniView{
         this.color = surfaceGeo.attributes.color;
     }
     
-    update(veArray:VEArray, makeThinIfSmall:boolean, makers:MarkerInfo, cp:THREE.Plane[]){
+    update(veArray:VEArray, makeThinIfSmall:boolean, markers:MarkerInfo[], cp:THREE.Plane[]){
         const {N} =  DenbaSettings;
-        if(!this.poleInitialized) this.initPole(makers);
-        for(const [barcode, {xy}] of Object.entries(makers)){
-            const pole = this.poles[barcode];
+        if(!this.poleInitialized) this.initPole(markers );
+        for(const {barcodeValue, xy} of markers){
+            const pole = this.poles[barcodeValue];
             if(xy){
-                pole.position.setX(xy.x);
+                pole.position.setX(xy.x);   
                 pole.position.setZ(xy.y);
                 pole.visible = true;
             }
@@ -105,8 +106,8 @@ export class DeniView{
         return [r+g, g, b+g];
     }
 
-    private initPole(makers:MarkerInfo) {
-        for(const [barcode, {charge}] of Object.entries(makers)){
+    private initPole(makers: MarkerInfo[]) { 
+        for(const {barcodeValue, charge} of makers){
             const pole = new Line2(
                 new LineGeometry(),
                 new LineMaterial({
@@ -121,7 +122,7 @@ export class DeniView{
                 0, charge > 0 ? DenbaSettings.VLimit:-DenbaSettings.VLimit, 0]);  
             pole.computeLineDistances();
             this.object.add(pole);
-            this.poles[barcode] = pole;
+            this.poles[barcodeValue] = pole;
         }
         this.poleInitialized = true;
     }

@@ -81,6 +81,7 @@ export class MarkerCradle{
                 }
                 if(marker.life > 0){
                     markerInfos.push({
+                        barcodeValue: marker.barcodeValue,
                         charge: marker.charge,
                         xy: new THREE.Vector2(marker.pos.x, marker.pos.z),
                     });

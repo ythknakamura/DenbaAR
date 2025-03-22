@@ -45,6 +45,7 @@ export type VEArray = (VE & {x:number, y:number})[];
 export type MarkerInfo = {
     charge: number,
     xy: THREE.Vector2,
+    barcodeValue: number,
 };
 
 export const Cards: Record<string, number> = {
