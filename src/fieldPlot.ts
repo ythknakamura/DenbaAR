@@ -4,10 +4,11 @@ import { DenbaView } from './denbaView';
 import { DeniView } from './deniView';
 import { EArrow } from './eArrow';
 import {Contour, EFLine} from './trajectory';
-import {DenbaSettings, ViewModes, Colors, Cards, ij2xy} from "./settings";
+import {DenbaSettings, ViewModes,ij2xy} from "./settings";
 import type {VE, MarkerInfo, VEArray} from './settings';
 
 class FieldPlotClass{
+
     private readonly veArray: VEArray;
     private readonly arObject: THREE.Group;
     private readonly clippingPlanes: THREE.Plane[];
@@ -19,18 +20,6 @@ class FieldPlotClass{
     private makeThinIfSmall = false;
 
     constructor(){
-        // Markerの登録
-        for(const [barcode, charge] of Object.entries(Cards)){
-            const color  = charge > 0 ? Colors.Positive : Colors.Negative;
-            const size = 0.1 + Math.abs(charge) * 0.1;
-            const object = new THREE.Mesh(
-                new THREE.SphereGeometry(size),
-                new THREE.MeshLambertMaterial({color})
-            );
-            object.position.set(0, 0, -1.25);
-            ArCtrl.addMarker(barcode, charge, object);
-        }
-        
         this.veArray = [];
         for (let i=0; i<=DenbaSettings.N; i++){
             for(let j=0; j<=DenbaSettings.N; j++){
@@ -40,7 +29,6 @@ class FieldPlotClass{
         }
 
         this.clippingPlanes = new Array(6);
-
         this.denbaView = new DenbaView();
         this.deniView = new DeniView();
         this.eArrow = new EArrow();
@@ -53,18 +41,10 @@ class FieldPlotClass{
         this.arObject.add(this.eArrow.object);
         this.arObject.add(this.contour.object);
         this.arObject.add(this.efLine.object);
-        ArCtrl.addToScene(this.arObject);
+        ArCtrl.addToViOrigin(this.arObject);
     }
 
-    calcValues(markers:MarkerInfo, cursor:THREE.Vector2){
-        const {p,q} = ArCtrl.getWorldPosAndQuat();
-        const pos = this.arObject.position;
-        const quat = this.arObject.quaternion;
-        const s =1.0/8;
-        const r = 1-s;
-        pos.set(pos.x*r + p.x*s, pos.y*r + p.y*s, pos.z*r + p.z*s);
-        quat.set(quat.x*r + q.x*s, quat.y*r + q.y*s, quat.z*r + q.z*s, quat.w*r + q.w*s);
-
+    calcValues(markers:MarkerInfo[], cursor:THREE.Vector2){
         for(let idx=0; idx<this.veArray.length; idx++){
             const vea = this.veArray[idx];
             const {x,y} = vea;
@@ -130,18 +110,16 @@ class FieldPlotClass{
         this.contour.object.visible = showContour;
     } 
 
-    private calcVE(x:number, y:number, markers:MarkerInfo):VE{
+    private calcVE(x:number, y:number, markers:MarkerInfo[]):VE{
         let [v, ex, ey] = [0, 0, 0];
-        for(const marker of Object.values(markers)){
-            if(marker.xy){
-                const mx = marker.xy.x;
-                const my = marker.xy.y;
-                const r = Math.sqrt((x-mx)**2 + (y-my)**2);
-                const coo = DenbaSettings.K * marker.charge;
-                v += coo/r;
-                ex += coo*(x-mx)/(r**3);
-                ey += coo*(y-my)/(r**3);
-            }
+        for(const marker of markers){
+            const mx = marker.xy.x;
+            const my = marker.xy.y;
+            const r = Math.sqrt((x-mx)**2 + (y-my)**2);
+            const coo = DenbaSettings.K * marker.charge;
+            v += coo/r;
+            ex += coo*(x-mx)/(r**3);
+            ey += coo*(y-my)/(r**3);
         }
         const e = Math.sqrt(ex ** 2 + ey ** 2);
         v = THREE.MathUtils.clamp(v, -DenbaSettings.VLimit*1.5, DenbaSettings.VLimit*1.5);

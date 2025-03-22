@@ -2,10 +2,10 @@ import * as THREE from 'three';
 import { THREEx } from '@ar-js-org/ar.js-threejs';
 import Stats from 'three/examples/jsm/libs/stats.module.js';
 import cameraPara from "./assets/camera_para.dat?url";
+import { MarkerCradle } from './markerCradle';
 import {type MarkerInfo, DebugMode, DenbaSettings, ARSettings} from './settings';
 const width = 640*2;
 const height = 480*2;
-const baseMarkerBarcodeValue = 0;
 
 const stats = DebugMode ? new Stats() : undefined;
 if(stats){
@@ -14,13 +14,12 @@ if(stats){
 }
 
 class ArController{
+    private readonly markerCradle : MarkerCradle;
     private readonly renderer = new THREE.WebGLRenderer({
         antialias: true, alpha: true,
     });
     private readonly scene = new THREE.Scene();
-    private readonly baseMarkerRoot: THREE.Group = new THREE.Group();
     private readonly clock: THREE.Clock = new THREE.Clock();
-    private readonly markers : MarkerInfo = {};
     private readonly raycaster = new THREE.Raycaster();
     private readonly cursor = new THREE.Mesh(
         new THREE.BoxGeometry(0.1, 0.1, 0.1),
@@ -32,9 +31,9 @@ class ArController{
         matrixCodeType:'3x3_PARITY65',
         debug: false,
     });
-    tickFunc?: (markers:MarkerInfo, cursor:THREE.Vector2, baseMakerSurvived: boolean) => void;
+    tickFunc?: (markers:MarkerInfo[], cursor:THREE.Vector2, baseMakerSurvived: boolean) => void;
+    tickFunc2?: (cursor:THREE.Vector2) => void;
     private lastUpdate : number = 100000;
-    private baseMarkerLife : number = ARSettings.MarkerLife;
 
     constructor(){
         const renderer = this.renderer;
@@ -55,38 +54,63 @@ class ArController{
         light.position.set(1, 5, 10);
         light.lookAt(0, 0, 0);
         scene.add(light);
-
-        const baseMarkerRoot = this.baseMarkerRoot;
-        scene.add(baseMarkerRoot);
-
-        const markerPlane = new THREE.Mesh(
-            new THREE.PlaneGeometry(DenbaSettings.L, DenbaSettings.L),
-            new THREE.MeshBasicMaterial({colorWrite: false, depthWrite: false})
-        );
-        markerPlane.rotation.x = -Math.PI/2;
-        baseMarkerRoot.add(markerPlane);
-        baseMarkerRoot.add(this.cursor);
         
         const arToolkitSource = new THREEx.ArToolkitSource({
             sourceType: 'webcam',
             sourceWidth: width,
             sourceHeight: height,
         });
-        arToolkitSource.init(
-            () => {setTimeout(() => {onResize();}, 500);},
-            () => {}
-        );
 
         const arToolkitContext = this.arToolkitContext;
         arToolkitContext.init(() => {
             camera.projectionMatrix.copy(arToolkitContext.getProjectionMatrix());
         });
 
-        new THREEx.ArMarkerControls(arToolkitContext, baseMarkerRoot, {
-            type: 'barcode',
-            barcodeValue: baseMarkerBarcodeValue,
-            changeMatrixMode: 'modelViewMatrix',
-        });
+        this.markerCradle = new MarkerCradle();
+        for(const {barcodeValue, root} of this.markerCradle.getMarkerRoots()){
+            new THREEx.ArMarkerControls(arToolkitContext, root, {
+                type: 'barcode',
+                barcodeValue,
+                changeMatrixMode: 'modelViewMatrix',
+            });
+            scene.add(root);
+        }
+        const viOrigin = this.markerCradle.getViOrigin();
+        scene.add(viOrigin);
+
+        const markerPlane = new THREE.Mesh(
+            new THREE.PlaneGeometry(DenbaSettings.L, DenbaSettings.L),
+            new THREE.MeshBasicMaterial({colorWrite: false, depthWrite: false})
+        );
+        markerPlane.rotation.x = -Math.PI/2;
+        viOrigin.add(markerPlane);
+        viOrigin.add(this.cursor);
+
+        const onResize = () => {
+            arToolkitSource.onResizeElement();
+            arToolkitSource.copyElementSizeTo(canvas);
+            if (arToolkitContext.arController) {
+                arToolkitSource.copyElementSizeTo(arToolkitContext.arController.canvas);
+            }
+        };
+        window.addEventListener('resize', onResize);
+        arToolkitSource.init(
+            () => {setTimeout(() => {onResize();}, 500);},
+            () => {}
+        );
+
+        const onHandleMove = (event: MouseEvent|TouchEvent) => {
+            const mouse = this.getRelativePos(event);
+            this.raycaster.setFromCamera(mouse, camera);
+            const intersects = this.raycaster.intersectObjects([markerPlane]);
+            if(intersects.length > 0){
+                const point = intersects[0].point;
+                const posBase  = this.markerCradle.getOriginPos(point);
+                this.cursor.position.copy(posBase);
+            }
+        };
+        renderer.domElement.addEventListener('mousemove', onHandleMove);
+        renderer.domElement.addEventListener('touchmove', onHandleMove);
 
         let frame = 0;
         renderer.setAnimationLoop((() =>{
@@ -98,87 +122,18 @@ class ArController{
                 frame++;
             }
         }));
-
-        const onResize = () => {
-            arToolkitSource.onResizeElement();
-            arToolkitSource.copyElementSizeTo(canvas);
-            if (arToolkitContext.arController) {
-                arToolkitSource.copyElementSizeTo(arToolkitContext.arController.canvas);
-            }
-        };
-        window.addEventListener('resize', onResize);
-
-        const onHandleMove = (event: MouseEvent|TouchEvent) => {
-            const mouse = this.getRelativePos(event);
-            this.raycaster.setFromCamera(mouse, camera);
-            const intersects = this.raycaster.intersectObjects([markerPlane]);
-            if(intersects.length > 0){
-                const point = intersects[0].point;
-                const posBase  = this.baseMarkerRoot.worldToLocal(point);
-                this.cursor.position.copy(posBase);
-            }
-        };
-        renderer.domElement.addEventListener('mousemove', onHandleMove);
-        renderer.domElement.addEventListener('touchmove', onHandleMove);
-}
-
-    addMarker(barcodeStr: string, charge:number, object:THREE.Object3D){
-        const root = new THREE.Group();
-        new THREEx.ArMarkerControls(this.arToolkitContext, root, {
-            type: 'barcode',
-            barcodeValue: parseInt(barcodeStr),
-            changeMatrixMode: 'modelViewMatrix',
-        });
-        root.add(object);
-        this.scene.add(root);
-        this.markers[barcodeStr] = {root, charge, object, life: ARSettings.MarkerLife};
     }
 
-    addToScene(object:THREE.Object3D){
-        this.scene.add(object);
-    }
-    getWorldPosAndQuat():{p:THREE.Vector3, q:THREE.Quaternion}{
-        const p = new THREE.Vector3();
-        const q = new THREE.Quaternion();
-        this.baseMarkerRoot.getWorldPosition(p);
-        this.baseMarkerRoot.getWorldQuaternion(q);
-        return { p, q };
+    addToViOrigin(object:THREE.Object3D){
+        this.markerCradle.getViOrigin().add(object);
     }
 
     private tick(){
         stats?.begin();
-        let baseMakerSurvived =  true;
-        this.lastUpdate += this.clock.getDelta();
-        if(this.lastUpdate > ARSettings.MarkerUpdateInterval){
-            if(this.baseMarkerRoot.visible){
-                this.baseMarkerLife = ARSettings.MarkerLife;
-            }
-            else{
-                this.baseMarkerLife--;
-                if (this.baseMarkerLife < 0){
-                    baseMakerSurvived = false;
-                }
-            }
-            if(baseMakerSurvived){
-                for(const marker of Object.values(this.markers)){
-                    if(marker.root.visible){
-                        const posWorld = marker.object.getWorldPosition(new THREE.Vector3());
-                        const posBase  = this.baseMarkerRoot.worldToLocal(posWorld);
-                        marker.xy = new THREE.Vector2(posBase.x, posBase.z);
-                        marker.life = ARSettings.MarkerLife;
-                        this.lastUpdate = 0;
-                    }
-                    else{
-                        marker.life--;
-                        if(marker.life < 0){
-                            marker.xy = undefined;
-                        }
-                    }
-                }
-            }
-        }
+        const markerInfos = this.markerCradle.getMarkerInfos();
+        const baseMakerSurvived = this.markerCradle.originSurvived;
         const cursorPos = new THREE.Vector2(this.cursor.position.x, this.cursor.position.z);
-        this.tickFunc?.(this.markers, cursorPos, baseMakerSurvived);
+        this.tickFunc?.(markerInfos, cursorPos,  baseMakerSurvived);
         stats?.end();
     }
 

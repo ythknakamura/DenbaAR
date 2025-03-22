@@ -11,10 +11,10 @@
   let showEFLine = $state(false);
   let showContour = $state(false);
 
-  ArCtrl.tickFunc = function(markers: MarkerInfo, cursor:THREE.Vector2, baseMarkerSurvived: boolean){
+  ArCtrl.tickFunc = function(markers: MarkerInfo[], cursor:THREE.Vector2, baseMarkerSurvived: boolean){
     if(DebugMode){
       dbgMsg = `c(${cursor.x.toFixed(2)}, ${cursor.y.toFixed(2)}), `;
-      for (const marker of Object.values(markers)) {
+      for (const marker of markers) { 
         if(marker.xy){
           dbgMsg += `${marker.charge} : (${marker.xy.x.toFixed(2)}, ${marker.xy.y.toFixed(2)}),   `; 
         }

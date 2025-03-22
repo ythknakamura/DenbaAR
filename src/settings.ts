@@ -12,7 +12,8 @@ export const DenbaSettings = {
 } as const;
 
 export const ARSettings={
-    MarkerLife:3,
+    LeapAlpha: 1/16,
+    MarkerLife:30,
     FrameSkip:3,
     MarkerUpdateInterval:0.1
 } as const;
@@ -41,13 +42,10 @@ export type PointData = {
 };
 export type VEArray = (VE & {x:number, y:number})[];
 
-export type MarkerInfo = Record<string, {
-    root: THREE.Group<THREE.Object3DEventMap>,
-    object: THREE.Object3D,
-    xy?: THREE.Vector2,
+export type MarkerInfo = {
     charge: number,
-    life:number,
-}>;
+    xy: THREE.Vector2,
+};
 
 export const Cards: Record<string, number> = {
     1: 1,
