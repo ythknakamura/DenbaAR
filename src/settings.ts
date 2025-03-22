@@ -15,7 +15,6 @@ export const ARSettings={
     LeapAlpha: 1/16,
     MarkerLife:30,
     FrameSkip:3,
-    MarkerUpdateInterval:0.1
 } as const;
 
 export const Colors = {

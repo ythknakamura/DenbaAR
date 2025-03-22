@@ -15,7 +15,6 @@ export class MarkerCradle{
     private readonly originRoot =  new THREE.Group();
     private originLife = ARSettings.MarkerLife;
     private readonly viOrigin= new THREE.Object3D();
-    originSurvived = false;
     private readonly markers : MarkerData[] = [];
 
     constructor(){
@@ -39,8 +38,13 @@ export class MarkerCradle{
             this.markers.push(marker);
         }
     }
+
     getViOrigin(){
         return this.viOrigin;
+    }
+    
+    getOriginPos(target:THREE.Vector3){
+        return this.viOrigin.worldToLocal(target);
     }
 
     getMarkerRoots():{barcodeValue:number,root:THREE.Object3D}[]{
@@ -52,24 +56,27 @@ export class MarkerCradle{
         return roots;
     }
 
-    getMarkerInfos():MarkerInfo[]{
+    getMarkerInfos():{markerInfos:MarkerInfo[], originSurvived:boolean}{
         //originMakerの確認
         if(this.originRoot.visible) this.originLife = ARSettings.MarkerLife;
         else                        this.originLife--;
         
-        this.originSurvived = this.originLife > 0;
+        const originSurvived = this.originLife > 0;
         if(this.originRoot.visible){
             const pos = this.originRoot.getWorldPosition(new THREE.Vector3());
             const quat = this.originRoot.getWorldQuaternion(new THREE.Quaternion());
+            const scale = this.originRoot.getWorldScale(new THREE.Vector3());
             const {x:px, y:py, z:pz} = this.viOrigin.position.lerp(pos, ARSettings.LeapAlpha);
             const {x:qx, y:qy, z:qz, w:qw} = this.viOrigin.quaternion.slerp(quat, ARSettings.LeapAlpha);
+            const {x:sx, y:sy, z:sz} = this.viOrigin.scale.lerp(scale, ARSettings.LeapAlpha);
             this.viOrigin.position.set(px, py, pz);
             this.viOrigin.quaternion.set(qx, qy, qz, qw);
+            this.viOrigin.scale.set(sx, sy, sz);
         }
 
         //markerの確認
         const markerInfos:MarkerInfo[] = [];
-        if(this.originLife > 0){
+        if(originSurvived){
             for (const marker of this.markers) {
                 if(marker.root.visible) marker.life = ARSettings.MarkerLife;
                 else                    marker.life--;
@@ -88,12 +95,6 @@ export class MarkerCradle{
                 }
             }
         }
-        return markerInfos;
+        return {markerInfos, originSurvived};
     }
-
-    getOriginPos(target:THREE.Vector3){
-        return this.viOrigin.worldToLocal(target);
-    }
-
-
 }

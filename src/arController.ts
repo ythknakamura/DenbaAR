@@ -4,6 +4,7 @@ import Stats from 'three/examples/jsm/libs/stats.module.js';
 import cameraPara from "./assets/camera_para.dat?url";
 import { MarkerCradle } from './markerCradle';
 import {type MarkerInfo, DebugMode, DenbaSettings, ARSettings} from './settings';
+import { makeClipAdditive } from 'three/src/animation/AnimationUtils.js';
 const width = 640*2;
 const height = 480*2;
 
@@ -15,16 +16,10 @@ if(stats){
 
 class ArController{
     private readonly markerCradle : MarkerCradle;
-    private readonly renderer = new THREE.WebGLRenderer({
-        antialias: true, alpha: true,
-    });
+    private readonly renderer = new THREE.WebGLRenderer({antialias: true, alpha: true});
     private readonly scene = new THREE.Scene();
-    private readonly clock: THREE.Clock = new THREE.Clock();
     private readonly raycaster = new THREE.Raycaster();
-    private readonly cursor = new THREE.Mesh(
-        new THREE.BoxGeometry(0.1, 0.1, 0.1),
-        new THREE.MeshBasicMaterial({colorWrite: false, depthWrite: false})
-    );
+    private readonly cursor = new THREE.Vector2();
     private readonly arToolkitContext = new THREEx.ArToolkitContext({
         cameraParametersUrl: cameraPara,
         detectionMode:'mono_and_matrix',
@@ -32,8 +27,6 @@ class ArController{
         debug: false,
     });
     tickFunc?: (markers:MarkerInfo[], cursor:THREE.Vector2, baseMakerSurvived: boolean) => void;
-    tickFunc2?: (cursor:THREE.Vector2) => void;
-    private lastUpdate : number = 100000;
 
     constructor(){
         const renderer = this.renderer;
@@ -75,16 +68,14 @@ class ArController{
             });
             scene.add(root);
         }
-        const viOrigin = this.markerCradle.getViOrigin();
-        scene.add(viOrigin);
+        scene.add(this.markerCradle.getViOrigin());
 
-        const markerPlane = new THREE.Mesh(
+        const cursorDetectPlane = new THREE.Mesh(
             new THREE.PlaneGeometry(DenbaSettings.L, DenbaSettings.L),
             new THREE.MeshBasicMaterial({colorWrite: false, depthWrite: false})
         );
-        markerPlane.rotation.x = -Math.PI/2;
-        viOrigin.add(markerPlane);
-        viOrigin.add(this.cursor);
+        cursorDetectPlane.rotation.x = -Math.PI/2;
+        this.addToViOrigin(cursorDetectPlane);
 
         const onResize = () => {
             arToolkitSource.onResizeElement();
@@ -100,13 +91,16 @@ class ArController{
         );
 
         const onHandleMove = (event: MouseEvent|TouchEvent) => {
+            if(event instanceof MouseEvent){
+                if(event.buttons%2===0) return;
+            }
             const mouse = this.getRelativePos(event);
             this.raycaster.setFromCamera(mouse, camera);
-            const intersects = this.raycaster.intersectObjects([markerPlane]);
+            const intersects = this.raycaster.intersectObjects([cursorDetectPlane]);
             if(intersects.length > 0){
                 const point = intersects[0].point;
                 const posBase  = this.markerCradle.getOriginPos(point);
-                this.cursor.position.copy(posBase);
+                this.cursor.set(posBase.x, posBase.z);
             }
         };
         renderer.domElement.addEventListener('mousemove', onHandleMove);
@@ -130,10 +124,8 @@ class ArController{
 
     private tick(){
         stats?.begin();
-        const markerInfos = this.markerCradle.getMarkerInfos();
-        const baseMakerSurvived = this.markerCradle.originSurvived;
-        const cursorPos = new THREE.Vector2(this.cursor.position.x, this.cursor.position.z);
-        this.tickFunc?.(markerInfos, cursorPos,  baseMakerSurvived);
+        const {markerInfos, originSurvived} = this.markerCradle.getMarkerInfos();
+        this.tickFunc?.(markerInfos, this.cursor, originSurvived);
         stats?.end();
     }
 
